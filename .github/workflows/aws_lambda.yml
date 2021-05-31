@@ -1,61 +1,72 @@
-name: AWS Lambda Deploy
+name: Deploy to Amazon ECS
 
 on:
-  push:
-    branches: [ master, main ]
-  pull_request:
-    branches: [ master, main ]
-  workflow_dispatch:  # trigger manually like 
+  release:
+    types: [ created ]
+
+env:
+  AWS_REGION: ${{ secrets.AWS_DEFAULT_REGION }}    
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID}}
+  AWS_SECRET_ACCESS_KEY: ${{ AWS_SECRET_ACCESS_KEY }}
+  ECR_REPOSITORY: ${{ secrets.AWS_ECR_IMAGE_URI }} 
+  ECS_SERVICE: ${{ helloworldapp-container-service }}                 
+  ECS_CLUSTER: ${{ helloworldapp-cluster }}                 
+  ECS_TASK_DEFINITION: ./task_definition.json 
+  CONTAINER_NAME: ${{ helloworldapp-container }}    
+
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  build:
-
+  deploy:
+    name: Deploy
     runs-on: ubuntu-latest
-    env:
-      ECR_IMAGE_TAG: latest
+    permissions:
+      packages: write
+      contents: read
 
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build, tag, and push image to Amazon ECR
-      id: build-image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: helloworld
-      run: |
-        # Build a docker container and
-        # push it to ECR so that it can
-        # be deployed to AWS lambda.
-        docker build \
-            --build-arg AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
-            --build-arg AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-            --build-arg AWS_DEFAULT_REGION="${{ secrets.AWS_DEFAULT_REGION }}" \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.ECR_IMAGE_TAG }} .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.ECR_IMAGE_TAG }}
-        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:${{ env.ECR_IMAGE_TAG }}"
-    - name: Deploy to AWS Lambda
-      run: |
-        aws lambda update-function-code \
-        --function-name ${{ env.AWS_LAMBDA_FUNC_NAME }} \
-        --image-uri "${{ secrets.AWS_ECR_IMAGE_URI }}:${{ env.ECR_IMAGE_TAG }}"
-      env:
-        AWS_LAMBDA_FUNC_NAME: func-helloworld-demo
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: latest
+        run: |
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to ECS.
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
+      - name: 083731b3a648455fb793af396baaa9a8
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
 
-
-
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
