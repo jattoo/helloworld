@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Resources needed to deploy scheduled lambda function with ECR image.
+Resources:
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: helloworld  # optional
+      Description: A starter AWS Lambda function.
+      Role: arn:aws:iam::431524755638:role/service-role/helloworld-role-zwon4udy
+      PackageType: Image
+      Code:
+        ImageUri: 431524755638.dkr.ecr.us-east-2.amazonaws.com/helloworld:latest
+      Timeout: 30
+      MemorySize: 128
+      TracingConfig:
+        Mode: Active
+      # VpcConfig:
+      #   SecurityGroupIds:
+      #     - sg-0d1d60471d00b3c5e
+      #   SubnetIds:
+      #     - subnet-04564f21a448f7a97
+      #     - subnet-00553e385bc6a7f1c
+  ScheduledRule:
+    Type: AWS::Events::Rule
+    DependsOn: LambdaFunction
+    Properties:
+      Name: helloworld-cloudwatch # optional
+      Description: "ScheduledRule"
+      ScheduleExpression: "cron(0 8 1 * ? *)"
+      State: "ENABLED"
+      Targets:
+        -
+          Arn:
+            Fn::GetAtt:
+              - "LambdaFunction"
+              - "Arn"
+          Id: "TargetFunctionV1"
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    DependsOn: LambdaFunction
+    Properties:
+      FunctionName: !Ref "LambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn:
+        Fn::GetAtt:
+          - "ScheduledRule"
+          - "Arn"
