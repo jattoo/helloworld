@@ -59,9 +59,9 @@ jobs:
         --image-uri "${{ env.AWS_ECR_IMAGE_URI }}:${{ env.ECR_IMAGE_TAG }}"
       env:
         AWS_LAMBDA_FUNC_NAME: func-helloworld-demo
-        AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-        AWS_DEFAULT_REGION: ${{ env.AWS_DEFAULT_REGION }}
+        AWS_ACCESS_KEY_ID: AKIAWI6HBHC3AO255M4V
+        AWS_SECRET_ACCESS_KEY: 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
+        AWS_DEFAULT_REGION: us-east-2
 
 
 
