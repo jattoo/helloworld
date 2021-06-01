@@ -48,9 +48,9 @@ jobs:
         # push it to ECR so that it can
         # be deployed to AWS lambda.
         docker build \
-            --build-arg AWS_ACCESS_KEY_ID="${{ env.AWS_ACCESS_KEY_ID }}" \
-            --build-arg AWS_SECRET_ACCESS_KEY="${{ env.AWS_SECRET_ACCESS_KEY }}" \
-            --build-arg AWS_DEFAULT_REGION="${{ env.AWS_DEFAULT_REGION }}" \
+            --build-arg AWS_ACCESS_KEY_ID="AKIAWI6HBHC3AO255M4V" \
+            --build-arg AWS_SECRET_ACCESS_KEY="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" \
+            --build-arg AWS_DEFAULT_REGION="us-east-2" \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.ECR_IMAGE_TAG }} .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.ECR_IMAGE_TAG }}
         echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:${{ env.ECR_IMAGE_TAG }}"
